@@ -1,0 +1,85 @@
+#1Read GlobAlbedo data DHR_SW (shortwave directional-hemispherical reflectance) into a masked array data
+
+from netCDF4 import Dataset
+import numpy as np
+import numpy.ma as ma
+root = 'files/data/'
+year = 2009
+months = xrange(1,13)
+data = []
+for i,month in enumerate(months):
+    local_file = root + 'GlobAlbedo.%d%02d.mosaic.5.nc'%(year,month)
+    nc = Dataset(local_file,'r')
+    band = np.array(nc.variables['DHR_SW'])
+    masked_band = ma.array(band,mask=np.isnan(band))
+    data.append(masked_band)
+
+data = ma.array(data)
+
+#2 Generate a spatial Solar Radiation dataset rad of the same shape as data
+
+lat = np.array(nc.variables['lat'])
+
+av_days = 365.25 / 12.
+half = av_days/2.
+N = np.arange(half,365.25,av_days)
+
+t0 = np.deg2rad (0.98565*(N-2))
+t1 = 0.39779*np.cos( np.deg2rad ( 0.98565*(N+10) + 1.914*np.sin ( t0 ) ) )
+delta = -np.arcsin ( t1 )
+
+h = 0.0
+
+def declination(N):
+    t0 = np.deg2rad (0.98565*(N-2))
+    t1 = 0.39779*np.cos( np.deg2rad ( 0.98565*(N+10) + 1.914*np.sin ( t0 ) ) )
+    delta = -np.arcsin ( t1 )
+    return np.rad2deg(delta)
+
+
+def solar_elevation(delta,h,lat):
+    lat = np.deg2rad(lat)
+    delta = np.deg2rad(delta)
+    h = np.deg2rad(h)
+    sin_theta = np.cos (h)*np.cos (delta)*np.cos(lat) + np.sin ( delta)*np.sin(lat)
+    return np.rad2deg(np.arcsin(sin_theta))
+
+N2 = np.array([[N] * data.shape[1]] * data.shape[2]).T
+lat2 = np.array([np.array([lat] * data.shape[0]).T] * data.shape[2]).T
+
+h2 = np.zeros_like(N2) + h
+
+delta = declination(N2.copy())
+e0 = 1360.
+sea = solar_elevation(delta,h2.copy(),lat2.copy())
+sin_theta = np.sin(np.deg2rad(sea))
+rad = e0*sin_theta
+
+rad[rad < 0] = 0.0
+
+incoming_rad = rad
+
+rad = ma.array(incoming_rad,mask=data.mask)
+
+print data.shape
+print rad.shape
+
+np.savez('files/data/solar_rad_data.npz',\
+         rad=np.array(rad),data=np.array(data),mask=data.mask)
+
+#3 Calculate the amount of solar radiation absorbed at the surface (W m^-2)
+
+not_valid = np.isnan(rad)
+valid = not_valid == False
+nrad = rad[valid]
+print rad[valid].sum()
+
+#4 Calculate the latitudinal total absorbed radiation for each month (W m^-2)
+
+month_sum = rad.sum(axis=(1,2))
+print month_sum
+
+#5
+lat_month_sum = rad.sum(axis=(1,))
+total_month_sum = lat_month_sum.sum(axis=(1,))
+print total_month_sum
