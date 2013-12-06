@@ -1,0 +1,29 @@
+geogg122
+========
+import datetime
+import numpy as np
+
+file = 'data/delNorteT.dat'
+
+temp = np.loadtxt(file,skiprows=1,usecols=(0,1,2,3,4),unpack=True,dtype=str)
+
+ds = np.array(temp[0:3,0]).astype(int)
+day = datetime.datetime(ds[0],ds[1],ds[2]).strftime('%j')
+
+temp_2007 = temp[3:5,2557:2922]
+temp_2008 = temp[3:5,2922:3288]
+
+#################################
+
+file = 'data/delnorte.dat'
+
+def col0(discharge):
+        ds = np.array(discharge.split('-')).astype(int)
+        day = datetime.datetime(ds[0],ds[1],ds[2]).strftime('%j')
+        return day
+
+discharge = np.loadtxt(file,usecols=(2,3),converters={2 : col0},unpack=True,dtype=str)
+
+
+data_2007 = discharge[0:2,2557:2922]
+data_2008 = discharge[0:2,2922:3288]
