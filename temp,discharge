@@ -34,3 +34,8 @@ discharge = np.loadtxt(file,usecols=(2,3),converters={2 : col0},unpack=True,dtyp
 
 data_2007 = discharge[0:2,2557:2922]
 data_2008 = discharge[0:2,2922:3288]
+
+######################################## append
+
+data=[]
+data.append(data_2007,t)
